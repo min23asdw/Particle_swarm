@@ -5,12 +5,23 @@ public class Swarm {
     String[] mlp;
     String neural_type;
     double biases;
-    double learningRate = 0.1;
-    int num_population;
+    double p1 = 1.7;
+    double p2 = 2.4;
+    double c1 = 2;
+    double c2 = 1;
+
+    double upper_limit_vector = 1.0;
+    double kenhedy;
+    double inertia_w;
+
+
+    int num_particle;
     int maxEpoch;
 
-    double pbest = 99999999;
-    Matrix[] weight_pbest;
+
+
+    double gbest = Double.MAX_VALUE;
+    Matrix[] weight_gbest;
 //    Matrix[] vector_weight;
     Random r = new Random();
     individual[] seach_space;
@@ -33,9 +44,17 @@ public class Swarm {
         this.neural_type = _mlp;
         this.mlp = _mlp.split(",");;
         this.biases = _biases;
-        this.num_population = _population;
+        this.num_particle = _population;
         this.maxEpoch = _maxGeneration;
 
+        double p = p1+p2;
+        double in =  Math.pow(p,2) - (4*p);
+        double abs =   Math.abs(in);
+        double root_2 = Math.sqrt(abs)/2;
+        this.kenhedy = ( 1.0 - (1/p) +root_2);
+
+
+        this.inertia_w = 0.5 * (c1+c2) - 1;
     }
 
     public void settraindata(ArrayList<Double[]> _train_dataset, ArrayList<Double[]> _train_desired_data) {
@@ -44,15 +63,16 @@ public class Swarm {
     }
 
     public void init_Particle(){
-        individual[] init =  new individual[num_population];
-        for(int indi = 0 ; indi < num_population ; indi++){
+        individual[] init =  new individual[num_particle];
+        for(int indi = 0; indi < num_particle; indi++){
             individual indiler = new individual( neural_type ,biases );
             init[indi] = indiler;
         }
         this.seach_space = init;
-        this.selection_pool = new individual[num_population];
+        this.selection_pool = new individual[num_particle];
 
-        this.weight_pbest = newWeight(seach_space[0]);
+
+        this.weight_gbest = newWeight(seach_space[0]);
 //        this.vector_weight =  newWeight(seach_space[0]);
     }
 
@@ -73,10 +93,24 @@ public class Swarm {
 
                 Matrix[] vector_weight = newWeight(particle);
                 for (int layer = 0 ; layer < particle.layer_weight.length ; layer++) {
-                    Matrix a = Matrix.sub_matrix(weight_pbest[layer],particle_weight[layer]);
-                    Matrix b = Matrix.mul_matrix(a,learningRate);
-                    Matrix c = Matrix.plus_matrix(b,particle.vector_weight[layer]);
-                    vector_weight[layer] = c;
+                    Matrix p_w = Matrix.sub_matrix(particle.weight_pbest[layer],particle_weight[layer]);
+                    Matrix learn_m_p = Matrix.mul_matrix(p_w, 1.496180);
+
+                    Matrix g_w = Matrix.sub_matrix(weight_gbest[layer],particle_weight[layer]);
+                    Matrix learn_m_g = Matrix.mul_matrix(g_w, 1.496180);
+
+
+
+                    Matrix old_vector_w = Matrix.mul_matrix(particle.vector_weight[layer],0.729844);
+
+                    //TODO
+                    Matrix vector_w = Matrix.plus_matrix(old_vector_w,learn_m_g);
+//                    Matrix vector_w = Matrix.plus_3matrix(old_vector_w,learn_m_p,learn_m_g);
+
+                    //clerc & kenhedy //TODO don't need
+                    Matrix ken = Matrix.mul_matrix(vector_w , 1);
+
+                    vector_weight[layer] = ken;
 //                    System.out.println("");
                 }
                 particle.set_vector_weight(vector_weight);
@@ -96,17 +130,6 @@ public class Swarm {
                 particle.set_weight(new_particle_weight);
             }
 
-
-
-//            vector_weight =  vector_weight +  learningRate * (weight_pbest - getWeight)
-
-//            selection();
-//            ArrayList<individual> offspring_pool =  p1();
-//            p2(offspring_pool);
-//            add2N(offspring_pool);
-
-//            if(gen != maxEpoch -1)  move2next_population(offspring_pool);
-
         }
         System.out.println("");
 
@@ -120,92 +143,44 @@ public class Swarm {
 
     }
 
+
+
     public Double[] paticle_eval(ArrayList<Double[]> dataset , ArrayList<Double[]> desired_data){
         double sum_fit = 0;
         double avg_fit;
-        double min_fit = 9999999;
+        double min_fit = Double.MAX_VALUE;
 
         //eval fitness
         for (individual particle : seach_space) {
             double error_mlp =   particle.eval(dataset , desired_data);
 
             double fitness = error_mlp;
-            if(min_fit > fitness){
+            if(fitness < min_fit ){
                 min_fit = fitness;
             }
 
             sum_fit += fitness;
-            //step 3
-            if(fitness < pbest){
-                pbest = fitness;
-                //TODO  clone?
-                weight_pbest = particle.get_weight();
+            //step 3.1
+            if(fitness < particle.pbest){
+                particle.set_pbest(fitness);
+                particle.set_weight_pbest(particle.get_weight());
+            }
+            //step 3.2
+            if(fitness < gbest){
+                gbest = fitness;
+                weight_gbest = particle.get_weight();
                 Pair<Double , individual> score_particle = new Pair<>(fitness, particle);
                 scoreBoard.add(score_particle);
             }
 
         }
-        avg_fit = sum_fit / num_population;
+        avg_fit = sum_fit / num_particle;
         return new Double[]{sum_fit, avg_fit, min_fit};
     }
 
     public double scaling(double error){
         return 1/(error + 0.01)  ;
     }
-
-//    public void selection(){
-//        // random tournament selection
-//
-//        for(int i = 0 ; i < num_population ; i++) {
-//
-//            int select1 = r.nextInt(0,49);
-//            int select2 = r.nextInt(0,49);
-//            individual a1 = seach_space[select1].clone();
-//            individual a2 = seach_space[select2].clone();
-//
-//            double a1_fit = scaling(a1.avg_error_n);
-//            double a2_fit = scaling(a2.avg_error_n);
-//
-//            if(a1_fit > a2_fit  ) selection_pool[i] = a1;
-//            else  selection_pool[i] = a2;
-//        }
-//    }
-
-//    public  ArrayList<individual>  p1(){
-//        ArrayList<individual> offspring_pool = new ArrayList<>();
-//        //pair selection
-//        for(int ran = 0 ; ran < num_population/2 ; ran++){
-//            int select1 = r.nextInt(0,selection_pool.length);
-//            int select2 = r.nextInt(0,selection_pool.length);
-//
-//            individual offspring =  crossover(selection_pool[select1], selection_pool[select2]);
-//
-//            offspring_pool.add(offspring);
-//        }
-//        return offspring_pool;
-//    }
-//
-//    public individual crossover(individual f , individual m){
-//        Matrix[] father_weight = f.clone().get_weight();
-//        Matrix[] mother_weight = m.clone().get_weight();
-//
-//        individual offspring = new individual( neural_type ,biases );
-//
-//        Matrix[] offspring_weight = newWeight(f);
-//        for (int layer = 0 ; layer < father_weight.length ; layer++ ) {
-//            for (int node = 0; node < father_weight[layer].rows; node++) {
-//                double q = uniform_random(0.0,1.0);
-//                if (q < prob_parent) {  // เอาจากพ่อ
-//                    offspring_weight[layer].data[node] = father_weight[layer].data[node].clone();
-//                } else {  //เอาจากแม่
-//                    offspring_weight[layer].data[node] = mother_weight[layer].data[node].clone();
-//                }
-//            }
-//        }
-//        offspring.set_weight(offspring_weight);
-//
-//        return offspring;
-//    }
 
     public Matrix[] newWeight(individual blueprint){
         Matrix[] offsprong_weight = new Matrix[blueprint.neural_type.length-1];
@@ -216,49 +191,5 @@ public class Swarm {
         return offsprong_weight;
     }
 
-//    public void p2(ArrayList<individual> offspring_pool){
-//        for (individual offspring:offspring_pool) {
-//            Matrix[] nodeofchild = offspring.get_weight();
-//            for (int layer = 0 ; layer < nodeofchild.length ; layer++ ){
-//                for (int node = 0 ; node < nodeofchild[layer].rows ; node++) {
-//                    //            for each non-input node
-//                    double q = uniform_random(0.0,1.0);
-//
-//                    if( q < prob_mul){
-//                        mutation(offspring,layer,node);
-//                    }
-//                }
-//            }
-//        }
-//    }
-
-//    public void mutation(individual offspring , int layer , int node){
-//        Matrix[] a = offspring.get_weight();
-//        for (int weightline = 0 ; weightline < a[layer].cols ; weightline ++ ){
-//            double e = uniform_random(-1.0,1.0);
-//            offspring.add_weight(layer,node,weightline , e);
-//        }
-//    }
-
-//    public void add2N(ArrayList<individual> offspring_pool ){
-//        while(offspring_pool.size() < num_population){
-//            int pick = r.nextInt(0,num_population-1);
-//            individual copy = seach_space[pick].clone();
-//
-//            offspring_pool.add(copy);
-//        }
-//    }
-
-//    public void move2next_population(ArrayList<individual> offspring_pool) {
-//        int i = 0 ;
-//        for (individual offspring : offspring_pool) {
-//            seach_space[i] =  offspring.clone();
-//            i++;
-//        }
-//    }
-//
-//    public double uniform_random(double rangeMin , double rangeMax ){
-//        return rangeMin + (rangeMax - rangeMin) * r.nextDouble();
-//    }
 
 }
