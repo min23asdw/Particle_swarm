@@ -10,6 +10,10 @@ public class individual  implements Cloneable {
 
     public Matrix[] layer_weight  ;
     public Matrix[] vector_weight  ;
+
+    public double pbest = Double.MAX_VALUE;
+    Matrix[] weight_pbest;
+
     private Double[][]  node  ;
     // TODO    30 - xxx - 2
     public individual(   String _neural_type ,double _biases) {
@@ -42,6 +46,13 @@ public class individual  implements Cloneable {
             Matrix weight = new Matrix(neural_type[layer+1],neural_type[layer] ,false);
             vector_weight[layer] = weight;
         }
+
+        weight_pbest = new Matrix[neural_type.length-1];
+        for (int layer = 0; layer < weight_pbest.length; layer++) {
+            Matrix weight = new Matrix(neural_type[layer+1],neural_type[layer] ,false);
+            weight_pbest[layer] = weight;
+        }
+
 
     }
 
@@ -155,7 +166,7 @@ public class individual  implements Cloneable {
             //train_desired_data => d_j desired output for neuron_node j at iteration N // it have "one data"
             //e_j  = error at neuron j at iteration N
             double desired = desired_data[outnode_j];
-            double getOutput =  activation_fn( node[node.length-1][outnode_j] )  ;
+            double getOutput =  node[node.length-1][outnode_j]   ;
             errors[outnode_j] =  desired - getOutput  ;
 
         }
@@ -176,6 +187,16 @@ public class individual  implements Cloneable {
     public  void set_vector_weight(Matrix[] _newWeight){
         this.vector_weight = _newWeight;
     }
+
+
+
+    public  void set_pbest(double _pbest){
+        this.pbest = _pbest;
+    }
+    public  void set_weight_pbest(Matrix[] _weight_pbest){
+        this.weight_pbest = _weight_pbest;
+    }
+
 
     public void add_weight(int layer , int node , int column , double value){
         layer_weight[layer].add(node,column,value);
