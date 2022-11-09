@@ -43,6 +43,18 @@ public class Matrix {
         return temp;
     }
 
+    public static Matrix plus_3matrix(Matrix a, Matrix b , Matrix c) {
+        Matrix temp=new Matrix(a.rows,a.cols , false);
+        for(int j=0;j<a.rows;j++)
+        {
+            for(int i=0;i<a.cols;i++)
+            {
+                temp.data[j][i]=a.data[j][i]+b.data[j][i]+c.data[j][i];
+            }
+        }
+        return temp;
+    }
+
     public static Matrix sub_matrix(Matrix a, Matrix b) {
         Matrix temp=new Matrix(a.rows,a.cols , false);
         for(int j=0;j<a.rows;j++)
